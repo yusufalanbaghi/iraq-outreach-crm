@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نقطة التواصل</title>
+<style>
+/* layout: sign-in gate -> two-pane shell (list rail + detail canvas), mobile stacks to single column */
+:root {
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --surface-2: #efece3;
+  --ink: #221f1a;
+  --ink-dim: #6b6558;
+  --line: #e2dccd;
+  --accent: #b5542a;
+  --accent-ink: #ffffff;
+  --good: #3f7d4f;
+  --warn: #b8862c;
+  --bad: #b3432f;
+  --gov: #6a6456;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17140f;
+    --surface: #211d16;
+    --surface-2: #2a251c;
+    --ink: #f1ece0;
+    --ink-dim: #a69c89;
+    --line: #38311f ;
+    --accent: #e08249;
+    --accent-ink: #1b1309;
+    --good: #6fbf7f;
+    --warn: #e0b45a;
+    --bad: #e0705a;
+    --gov: #a69c89;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17140f;
+  --surface: #211d16;
+  --surface-2: #2a251c;
+  --ink: #f1ece0;
+  --ink-dim: #a69c89;
+  --line: #38311f;
+  --accent: #e08249;
+  --accent-ink: #1b1309;
+  --good: #6fbf7f;
+  --warn: #e0b45a;
+  --bad: #e0705a;
+  --gov: #a69c89;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans Arabic', 'Tajawal', -apple-system, 'Segoe UI', sans-serif;
+  direction: rtl;
+  margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif; text-wrap: balance; margin: 0; }
+button { font-family: inherit; cursor: pointer; }
+a { color: var(--accent); }
+::selection { background: var(--accent); color: var(--accent-ink); }
+
+.shell { max-width: 1280px; margin: 0 auto; padding-block: 20px 48px; }
+
+/* ---- gate ---- */
+#gate { max-width: 420px; margin: 18vh auto; padding: 32px 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; text-align: center; }
+#gate h1 { font-size: 1.4rem; margin-bottom: 6px; }
+#gate p { color: var(--ink-dim); font-size: .9rem; margin: 10px 0 20px; }
+#gate input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font-size: .95rem; margin-bottom: 10px; }
+#gate button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: .95rem; }
+#gate .msg { font-size: .85rem; margin-top: 12px; min-height: 1.2em; }
+
+/* ---- top bar ---- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand .mark { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; color: var(--accent-ink); font-weight: 800; }
+.brand h1 { font-size: 1.15rem; }
+.who { font-size: .8rem; color: var(--ink-dim); }
+.signout { background: none; border: 1px solid var(--line); color: var(--ink-dim); border-radius: 8px; padding: 6px 12px; font-size: .8rem; }
+
+/* ---- stat strip ---- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 10px; margin-bottom: 18px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.stat .n { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: .72rem; color: var(--ink-dim); }
+
+/* ---- search / filters ---- */
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.toolbar input[type=search] { flex: 1; min-width: 180px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: .9rem; }
+.toolbar select { padding: 10px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: .85rem; }
+.toolbar button.primary { padding: 10px 16px; border-radius: 10px; border: none; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: .85rem; }
+
+/* ---- main grid ---- */
+.main { display: grid; grid-template-columns: 360px 1fr; gap: 18px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: 1fr; } }
+
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-height: 78vh; overflow-y: auto; }
+.row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.row:last-child { border-bottom: none; }
+.row:hover, .row.active { background: var(--surface-2); }
+.row .score { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.row .meta { min-width: 0; flex: 1; }
+.row .meta .name { font-size: .88rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .meta .sub { font-size: .72rem; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .68rem; font-weight: 700; }
+.pill.status-new { background: #d9d4c4; color: #4a4332; }
+:root[data-theme="dark"] .pill.status-new, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill.status-new { background: #3a3426; color: #d9d4c4; } }
+.pill.status-contacted { background: #d9ebe0; color: var(--good); }
+.pill.status-replied { background: #fdeccb; color: var(--warn); }
+.pill.gov { background: none; border: 1px solid var(--gov); color: var(--gov); }
+
+.empty-state { padding: 40px 20px; text-align: center; color: var(--ink-dim); font-size: .85rem; }
+
+/* ---- detail ---- */
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; min-height: 60vh; }
+.detail .hd { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.detail .hd h2 { font-size: 1.25rem; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tag { font-size: .72rem; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--ink-dim); border: 1px solid var(--line); }
+.bignum { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; flex: 0 0 auto; }
+.bignum small { display: block; font-size: .55rem; font-weight: 600; opacity: .8; }
+
+.section { margin-top: 20px; }
+.section h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-dim); margin-bottom: 10px; }
+
+.barline { display: grid; grid-template-columns: 110px 1fr 34px; align-items: center; gap: 8px; margin-bottom: 7px; font-size: .78rem; }
+.barline .track { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.barline .fill { height: 100%; background: var(--accent); border-radius: 99px; }
+.barline .val { text-align: left; font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: .85rem; }
+.kv dt { color: var(--ink-dim); }
+.kv dd { margin: 0; }
+
+ul.plain { margin: 0; padding-right: 18px; font-size: .85rem; line-height: 1.7; }
+ul.plain.evidence li { color: var(--ink-dim); }
+ul.plain.evidence a { word-break: break-all; }
+
+.msgcard { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+.msgcard .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-dim); margin-bottom: 6px; }
+.msgcard p { margin: 0; font-size: .88rem; line-height: 1.8; white-space: pre-wrap; }
+.msgcard .copy { margin-top: 10px; font-size: .78rem; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; color: var(--ink-dim); }
+.msgcard .copy.ok { color: var(--good); border-color: var(--good); }
+
+select.statusedit, textarea.noteinput { width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font-size: .85rem; font-family: inherit; }
+textarea.noteinput { min-height: 64px; resize: vertical; margin-top: 8px; }
+.row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn-small { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font-size: .78rem; }
+.btn-small.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.note { padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font-size: .82rem; margin-bottom: 8px; }
+.note .who { font-size: .7rem; color: var(--ink-dim); margin-top: 4px; }
+
+.pending { border-right: 3px solid var(--warn); padding-right: 10px; }
+
+.loading, .err { padding: 30px; text-align: center; color: var(--ink-dim); font-size: .85rem; }
+.err { color: var(--bad); }
+
+.toast { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); right: calc(18px + env(safe-area-inset-right, 0px)); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 10px; font-size: .82rem; opacity: 0; transform: translateY(8px); transition: .2s; pointer-events: none; z-index: 50; }
+.toast.show { opacity: 1; transform: translateY(0); }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<div id="gate">
+  <h1>نقطة التواصل</h1>
+  <p>سجّل دخولك بإيميلك المسجّل بالفريق — راح نرسلك رابط دخول.</p>
+  <input id="gate-email" type="email" placeholder="you@email.com" />
+  <button id="gate-btn" onclick="sendMagicLink()">إرسال رابط الدخول</button>
+  <div class="msg" id="gate-msg"></div>
+</div>
+
+<div class="shell" id="app" hidden></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://rrrszzriwtodxmatnets.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJycnN6enJpd3RvZHhtYXRuZXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3NjY0MjUsImV4cCI6MjEwODM0MjQyNX0.8oSRAfRZp4YAMU4KvYOFWDzT4345Qycxib4Cm6tdH4k';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let state = { companies: [], selected: null, filter: { status: '', q: '' }, session: null };
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById('gate-email').value.trim().toLowerCase();
+  const msg = document.getElementById('gate-msg');
+  if (!email) { msg.textContent = 'اكتب إيميلك أول.'; return; }
+  msg.style.color = 'var(--ink-dim)';
+  msg.textContent = 'جاري الإرسال...';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  if (error) { msg.style.color = 'var(--bad)'; msg.textContent = 'خطأ: ' + error.message; return; }
+  msg.style.color = 'var(--good)';
+  msg.textContent = 'شيك إيميلك — بعتنالك رابط دخول.';
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session) {
+    state.session = session;
+    document.getElementById('gate').hidden = true;
+    document.getElementById('app').hidden = false;
+    await boot();
+  } else {
+    document.getElementById('gate').hidden = false;
+    document.getElementById('app').hidden = true;
+  }
+});
+
+async function boot() {
+  const email = state.session.user.email;
+  renderShell(email);
+  await loadCompanies();
+}
+
+function renderShell(email) {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand"><div class="mark">ن</div><div><h1>نقطة التواصل</h1><div class="who">${email}</div></div></div>
+      <button class="signout" onclick="signOut()">تسجيل خروج</button>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="دوّر باسم الشركة، المالك، أي معلومة..." oninput="onSearchInput(event)">
+      <select id="status-filter" onchange="onFilterChange()">
+        <option value="">كل الحالات</option>
+        <option value="new">جديدة</option>
+        <option value="ready">جاهزة</option>
+        <option value="contacted">تم التواصل</option>
+        <option value="seen">شافوها</option>
+        <option value="replied">ردوا</option>
+        <option value="interested">مهتمين</option>
+        <option value="not_interested">غير مهتمين</option>
+      </select>
+      <button class="primary" onclick="requestResearch()">+ طلب بحث عن شركة جديدة</button>
+    </div>
+    <div class="main">
+      <div class="list" id="list"><div class="loading">...تحميل</div></div>
+      <div class="detail" id="detail"><div class="empty-state">اختر شركة من القائمة لتشوف التفاصيل</div></div>
+    </div>
+  `;
+}
+
+let searchTimer = null;
+function onSearchInput(e) {
+  state.filter.q = e.target.value;
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadCompanies, 300);
+}
+function onFilterChange() {
+  state.filter.status = document.getElementById('status-filter').value;
+  loadCompanies();
+}
+
+async function loadCompanies() {
+  const listEl = document.getElementById('list');
+  listEl.innerHTML = '<div class="loading">...تحميل</div>';
+  let query = sb.from('companies').select('id,name,sector,governorate,is_government,score_total,pipeline_status,primary_whatsapp,primary_email,research_status').order('score_total', { ascending: false, nullsFirst: false }).limit(300);
+  if (state.filter.status) query = query.eq('pipeline_status', state.filter.status);
+  if (state.filter.q) query = query.ilike('search_text', `%${normalizeAr(state.filter.q)}%`);
+  const { data, error } = await query;
+  if (error) { listEl.innerHTML = `<div class="err">خطأ بالتحميل: ${error.message}</div>`; return; }
+  state.companies = data || [];
+  renderStats();
+  renderList();
+}
+
+function normalizeAr(s) { return s; }
+
+function renderStats() {
+  const total = state.companies.length;
+  const byStatus = {};
+  state.companies.forEach(c => byStatus[c.pipeline_status] = (byStatus[c.pipeline_status]||0)+1);
+  const scored = state.companies.filter(c => c.score_total != null).length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${total}</div><div class="l">بالقائمة الحالية</div></div>
+    <div class="stat"><div class="n">${byStatus.new || 0}</div><div class="l">جديدة</div></div>
+    <div class="stat"><div class="n">${byStatus.contacted || 0}</div><div class="l">تم التواصل</div></div>
+    <div class="stat"><div class="n">${byStatus.replied || 0}</div><div class="l">ردوا</div></div>
+    <div class="stat"><div class="n">${scored}</div><div class="l">مقيّمة بالنظام الجديد</div></div>
+  `;
+}
+
+function scoreColor(score) {
+  if (score == null) return 'var(--ink-dim)';
+  if (score >= 70) return 'var(--good)';
+  if (score >= 45) return 'var(--warn)';
+  return 'var(--bad)';
+}
+
+function statusLabel(s) {
+  return { new:'جديدة', ready:'جاهزة', contacted:'تم التواصل', seen:'شافوها', replied:'ردوا', interested:'مهتمين', meeting:'اجتماع', proposal:'عرض سعر', won:'تم الإغلاق', lost:'خسرناها', not_interested:'غير مهتمين', do_not_contact:'لا تتواصل' }[s] || s;
+}
+
+function renderList() {
+  const listEl = document.getElementById('list');
+  if (!state.companies.length) {
+    listEl.innerHTML = '<div class="empty-state">ماكو نتائج. جرب تغيّر البحث أو الفلتر.</div>';
+    return;
+  }
+  listEl.innerHTML = state.companies.map(c => `
+    <div class="row ${state.selected && state.selected.id === c.id ? 'active' : ''}" onclick="selectCompany('${c.id}')">
+      <div class="score" style="background:${scoreColor(c.score_total)}22;color:${scoreColor(c.score_total)}">${c.score_total ?? '—'}</div>
+      <div class="meta">
+        <div class="name">${esc(c.name)}</div>
+        <div class="sub">${esc(c.sector || c.governorate || '')}</div>
+      </div>
+      <span class="pill status-${c.pipeline_status === 'replied' ? 'replied' : (c.pipeline_status === 'new' ? 'new' : 'contacted')}">${statusLabel(c.pipeline_status)}</span>
+    </div>
+  `).join('');
+}
+
+function esc(s) { return (s ?? '').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+async function selectCompany(id) {
+  const c = state.companies.find(x => x.id === id);
+  state.selected = c;
+  renderList();
+  const detail = document.getElementById('detail');
+  detail.innerHTML = '<div class="loading">...تحميل التفاصيل</div>';
+
+  const [full, people, sources, messages, notes, painPoints] = await Promise.all([
+    sb.from('companies').select('*').eq('id', id).single(),
+    sb.from('people').select('*').eq('company_id', id).order('is_decision_maker', { ascending: false }),
+    sb.from('sources').select('*').eq('company_id', id).order('created_at', { ascending: false }).limit(8),
+    sb.from('messages').select('*').eq('company_id', id).order('created_at', { ascending: false }),
+    sb.from('notes').select('*').eq('company_id', id).order('created_at', { ascending: false }),
+    sb.from('pain_points').select('*').eq('company_id', id).order('severity', { ascending: false }),
+  ]);
+
+  renderDetail(full.data, people.data || [], sources.data || [], messages.data || [], notes.data || [], painPoints.data || []);
+}
+
+function renderDetail(c, people, sources, messages, notes, pains) {
+  if (!c) { document.getElementById('detail').innerHTML = '<div class="err">تعذر تحميل الشركة</div>'; return; }
+  const breakdown = Array.isArray(c.score_breakdown) ? c.score_breakdown : [];
+  const maxVal = (b) => b.max || 25;
+
+  const breakdownHtml = breakdown.length ? breakdown.map(b => `
+    <div class="barline">
+      <span>${esc(b.label || b.key)}</span>
+      <div class="track"><div class="fill" style="width:${Math.min(100, (b.value / maxVal(b)) * 100)}%"></div></div>
+      <span class="val">${b.value}</span>
+    </div>
+  `).join('') : `<p style="color:var(--ink-dim);font-size:.85rem">لسا ما انعملها تقييم تفصيلي بالنظام الجديد. ${c.research_status === 'not_started' ? 'اضغط "ابحث عنها الآن" تحت.' : ''}</p>`;
+
+  const peopleHtml = people.length ? people.map(p => `
+    <div class="note">
+      <strong>${esc(p.full_name)}</strong> ${p.is_owner ? '👑 المالك' : ''} ${p.is_decision_maker ? '· صانع قرار' : ''}
+      <div class="who">${esc(p.title || '')} ${p.department ? '· ' + esc(p.department) : ''}</div>
+      ${p.linkedin_url ? `<div class="who"><a href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">LinkedIn ↗</a></div>` : ''}
+      ${p.business_phone || p.business_email ? `<div class="who">${esc(p.business_phone||'')} ${p.business_email ? '· '+esc(p.business_email) : ''}</div>` : ''}
+    </div>
+  `).join('') : `<p style="color:var(--ink-dim);font-size:.85rem">ما عدنا معلومات عن موظفين هذي الشركة بعد.</p>`;
+
+  const sourcesHtml = sources.length ? `<ul class="plain evidence">${sources.map(s => `<li>${esc(s.title || s.source_type)} ${s.url ? `— <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>` : ''}</li>`).join('')}</ul>` : `<p style="color:var(--ink-dim);font-size:.85rem">ماكو مصادر مسجّلة بعد.</p>`;
+
+  const painsHtml = pains.length ? pains.map(p => `
+    <div class="note">
+      <strong>${esc(p.title)}</strong> ${p.severity ? `· حدة ${p.severity}/5` : ''}
+      <div>${esc(p.detail || '')}</div>
+      ${p.solution_title ? `<div style="margin-top:6px;color:var(--good)">💡 ${esc(p.solution_title)}: ${esc(p.solution_detail || '')}</div>` : ''}
+    </div>
+  `).join('') : `<p style="color:var(--ink-dim);font-size:.85rem">لسا ما تحدد نقاط الألم عندهم.</p>`;
+
+  const msgByKind = {};
+  messages.forEach(m => { if (!msgByKind[m.kind]) msgByKind[m.kind] = m; });
+  const firstTouch = msgByKind['first_touch'];
+  const callOpener = msgByKind['call_opener'];
+  const objection = msgByKind['objection_handling'];
+
+  const notesHtml = notes.length ? notes.map(n => `<div class="note">${esc(n.body)}<div class="who">${esc(n.author || '')} · ${new Date(n.created_at).toLocaleDateString('ar-IQ')}</div></div>`).join('') : '';
+
+  document.getElementById('detail').innerHTML = `
+    <div class="hd">
+      <div>
+        <h2>${esc(c.name)}</h2>
+        <div class="tags">
+          ${c.sector ? `<span class="tag">${esc(c.sector)}</span>` : ''}
+          ${c.governorate ? `<span class="tag">${esc(c.governorate)}</span>` : ''}
+          ${c.is_government ? `<span class="tag" style="border-color:var(--gov);color:var(--gov)">حكومية</span>` : ''}
+          ${c.website_status ? `<span class="tag">موقع: ${esc(c.website_status)}</span>` : ''}
+          <span class="tag">بحث: ${{not_started:'ماكو بعد',queued:'بالطابور',in_progress:'جاري',done:'مكتمل',needs_update:'يحتاج تحديث',failed:'فشل'}[c.research_status] || c.research_status}</span>
+        </div>
+      </div>
+      <div class="bignum" style="background:${scoreColor(c.score_total)}22;color:${scoreColor(c.score_total)}">
+        ${c.score_total ?? '—'}<small>من 100</small>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>الحالة والمتابعة</h3>
+      <div class="row2">
+        <select class="statusedit" id="status-select" onchange="updateStatus('${c.id}', this.value)">
+          ${['new','ready','contacted','seen','replied','interested','meeting','proposal','won','lost','not_interested','do_not_contact'].map(s => `<option value="${s}" ${c.pipeline_status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
+        </select>
+        <button class="btn-small primary" onclick="requestRefresh('${c.id}')">🔄 حدّث البحث</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>تفصيل التقييم (${c.score_total ?? '—'}/100)</h3>
+      ${breakdownHtml}
+    </div>
+
+    ${c.summary ? `<div class="section"><h3>عن الشركة</h3><p style="font-size:.88rem;line-height:1.8">${esc(c.summary)}</p></div>` : ''}
+
+    <div class="kv section">
+      <dt>الهاتف</dt><dd>${esc(c.primary_phone || '—')}</dd>
+      <dt>واتساب</dt><dd>${esc(c.primary_whatsapp || '—')}</dd>
+      <dt>الإيميل</dt><dd>${esc(c.primary_email || '—')}</dd>
+      <dt>الموقع</dt><dd>${c.website ? `<a href="${esc(c.website)}" target="_blank" rel="noopener">${esc(c.website)}</a>` : '—'}</dd>
+      <dt>عدد الموظفين</dt><dd>${esc(c.employee_count_range || c.employee_count || '—')}</dd>
+      <dt>القدرة المالية</dt><dd>${esc(c.financial_capacity || '—')}</dd>
+    </div>
+
+    ${c.why_accept && c.why_accept.length ? `<div class="section"><h3>ليش احتمال القبول عالي</h3><ul class="plain">${c.why_accept.map(w=>`<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
+    ${c.cautions && c.cautions.length ? `<div class="section"><h3>⚠️ انتبه</h3><ul class="plain">${c.cautions.map(w=>`<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
+
+    <div class="section"><h3>نقاط الألم والحلول المقترحة</h3>${painsHtml}</div>
+
+    <div class="section"><h3>الموظفين وصانعي القرار</h3>${peopleHtml}</div>
+
+    <div class="section"><h3>الرسالة المخصصة</h3>
+      ${firstTouch ? `
+        <div class="msgcard">
+          <div class="lbl">أول رسالة</div>
+          <p id="msg-first">${esc(firstTouch.body)}</p>
+          <button class="copy" onclick="copyMsg('msg-first', this)">نسخ الرسالة</button>
+        </div>` : `<p style="color:var(--ink-dim);font-size:.85rem">لسا ما انكتبت رسالة مخصصة لهذي الشركة.</p>`}
+      ${callOpener ? `<div class="msgcard"><div class="lbl">أول جملة بالمكالمة</div><p id="msg-call">${esc(callOpener.body)}</p><button class="copy" onclick="copyMsg('msg-call', this)">نسخ</button></div>` : ''}
+      ${objection ? `<div class="msgcard"><div class="lbl">الاعتراض المتوقع: ${esc(objection.objection || '')}</div><p id="msg-obj">${esc(objection.body)}</p><button class="copy" onclick="copyMsg('msg-obj', this)">نسخ</button></div>` : ''}
+    </div>
+
+    <div class="section"><h3>الأدلة والمصادر</h3>${sourcesHtml}</div>
+
+    <div class="section">
+      <h3>ملاحظات الفريق</h3>
+      ${notesHtml}
+      <textarea class="noteinput" id="note-input" placeholder="اضيف ملاحظة... شنو صار، متى الموعد الجاي..."></textarea>
+      <div class="row2" style="margin-top:8px"><button class="btn-small primary" onclick="addNote('${c.id}')">حفظ الملاحظة</button></div>
+    </div>
+  `;
+}
+
+async function updateStatus(id, status) {
+  const { error } = await sb.from('companies').update({ pipeline_status: status, last_contacted_at: ['contacted','seen','replied'].includes(status) ? new Date().toISOString() : undefined }).eq('id', id);
+  if (error) { toast('خطأ: ' + error.message); return; }
+  toast('تحدّثت الحالة ✓');
+  const c = state.companies.find(x => x.id === id);
+  if (c) c.pipeline_status = status;
+  renderList();
+  renderStats();
+}
+
+async function addNote(companyId) {
+  const input = document.getElementById('note-input');
+  const body = input.value.trim();
+  if (!body) return;
+  const { error } = await sb.from('notes').insert({ company_id: companyId, body });
+  if (error) { toast('خطأ: ' + error.message); return; }
+  toast('انحفظت الملاحظة ✓');
+  selectCompany(companyId);
+}
+
+async function copyMsg(elId, btn) {
+  const text = document.getElementById(elId).textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const range = document.createRange();
+    range.selectNode(document.getElementById(elId));
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  }
+  btn.textContent = 'انتسخت ✓';
+  btn.classList.add('ok');
+  setTimeout(() => { btn.textContent = 'نسخ الرسالة'; btn.classList.remove('ok'); }, 1800);
+}
+
+async function requestResearch() {
+  const q = prompt('اكتب اسم الشركة أو اسم المالك أو أي معلومة تريد نبحث عنها:');
+  if (!q || !q.trim()) return;
+  const { error } = await sb.from('ai_tasks').insert({ task_type: 'discover_companies', query: q.trim() });
+  if (error) { toast('خطأ: ' + error.message); return; }
+  toast('انضاف طلب البحث للطابور — راح يوسف يعالجه قريباً');
+}
+
+async function requestRefresh(companyId) {
+  const { error } = await sb.from('ai_tasks').insert({ task_type: 'refresh_company', company_id: companyId });
+  if (error) { toast('خطأ: ' + error.message); return; }
+  await sb.from('companies').update({ research_status: 'queued' }).eq('id', companyId);
+  toast('انضاف طلب التحديث للطابور');
+  selectCompany(companyId);
+}
+
+// boot: check existing session on load
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    state.session = data.session;
+    document.getElementById('gate').hidden = true;
+    document.getElementById('app').hidden = false;
+    await boot();
+  }
+})();
+</script>
+</body>
+</html>
